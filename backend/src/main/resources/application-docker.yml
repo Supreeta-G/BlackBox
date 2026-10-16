@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/blackboxdb
+    username: blackbox_user
+    password: blackbox_password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: blackbox-event-group
+      auto-offset-reset: earliest
+
+blackbox:
+  kafka:
+    enabled: true
+    topic: ai-agent-events
+  ai:
+    demo-mode: ${DEMO_MODE:true}
+    api-key: ${OPENAI_API_KEY:}

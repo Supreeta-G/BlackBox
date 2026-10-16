@@ -1,0 +1,78 @@
+services:
+  # ==========================================================
+  # 1. PostgreSQL Database Service
+  # ==========================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: blackbox-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: blackboxdb
+      POSTGRES_USER: blackbox_user
+      POSTGRES_PASSWORD: blackbox_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blackbox_user -d blackboxdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================
+  # 2. Apache Kafka Service (KRaft Mode - No Zookeeper Needed)
+  # ==========================================================
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: blackbox-kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+    volumes:
+      - kafka_data:/bitnami/kafka
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ==========================================================
+  # 3. Optional Containerized Backend Application
+  # ==========================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: blackbox-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_URL=jdbc:postgresql://postgres:5432/blackboxdb
+      - DB_USERNAME=blackbox_user
+      - DB_PASSWORD=blackbox_password
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_ENABLED=true
+      - DEMO_MODE=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  kafka_data:
+    driver: local
