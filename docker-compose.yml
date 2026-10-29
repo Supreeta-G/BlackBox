@@ -3,15 +3,16 @@ services:
   # 1. PostgreSQL Database Service
   # ==========================================================
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.4-alpine
     container_name: blackbox-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: blackboxdb
       POSTGRES_USER: blackbox_user
       POSTGRES_PASSWORD: blackbox_password
+      POSTGRES_HOST_AUTH_METHOD: md5
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -51,8 +52,8 @@ services:
   # ==========================================================
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: blackbox-backend
     restart: unless-stopped
     ports:
